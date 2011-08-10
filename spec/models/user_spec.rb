@@ -55,7 +55,7 @@ describe User do
 
   describe "password validations" do
 
-    it "should require a password"do
+    it "should require a password" do
       User.new(@attr.merge(:password => "", :password_confirmation => "")).
         should_not be_valid
     end
