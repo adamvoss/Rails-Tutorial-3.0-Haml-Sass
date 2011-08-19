@@ -52,6 +52,26 @@ describe UsersController do
         response.should have_selector("a", :href => "/users?page=2",
                                            :content => "Next")
       end
+
+      describe "for non-admin users" do
+        it "should not have a delete link" do
+          get :index
+          response.should_not have_selector("a", :'data-method' => "delete",
+                                                  :content => "delete")
+        end
+      end
+
+      describe "for admin users" do
+        before(:each) do
+          @user.toggle!(:admin) unless @user.admin?
+        end
+
+        it "should have a delete link" do
+          get :index
+          response.should have_selector("a", :'data-method' => "delete",
+                                             :content => "delete")
+        end
+      end
     end
   end
 
@@ -88,37 +108,53 @@ describe UsersController do
   end
 
   describe "GET 'new'" do
-    it "should be successful" do
-      get :new
-      response.should be_success
+
+    describe "for non-signed in users" do
+
+      it "should be successful" do
+        get :new
+        response.should be_success
+      end
+
+      it "should have the right title" do
+        get :new
+        response.should have_selector("title", :content => "Sign up")
+      end
+
+      it "should have a name field" do
+        get :new
+        response.should have_selector("input[name='user[name]'][type='text']")
+      end
+
+      it "should have an email field" do
+        get :new
+        response.should have_selector("input[name='user[email]'][type='text']")
+      end
+
+      it "should have a password field" do
+        get :new
+        response.should have_selector("input[name='user[password]'][type='password']")
+      end
+
+      it "should have a password confirmation field" do
+        get :new
+        response.should have_selector("input[name='user[password_confirmation]'][type='password']")
+      end
     end
 
-    it "should have the right title" do
-      get :new
-      response.should have_selector("title", :content => "Sign up")
-    end
+    describe "for signed-in users" do
 
-    it "should have a name field" do
-      get :new
-      response.should have_selector("input[name='user[name]'][type='text']")
-    end
+      before(:each) do
+        test_sign_in(Factory(:user))
+      end
 
-    it "should have an email field" do
-      get :new
-      response.should have_selector("input[name='user[email]'][type='text']")
-    end
-
-    it "should have a password field" do
-      get :new
-      response.should have_selector("input[name='user[password]'][type='password']")
-    end
-
-    it "should have a password confirmation field" do
-      get :new
-      response.should have_selector("input[name='user[password_confirmation]'][type='password']")
+      it "should redirect to root" do
+        get :new
+        response.should redirect_to(root_path)
+      end
     end
   end
-
+ 
   describe "POST 'create'" do
     describe "failure" do
 
@@ -173,6 +209,20 @@ describe UsersController do
         flash[:success].should =~ /welcome to the sample app/i
       end
     end
+
+
+    describe "for signed-in users" do
+
+      before(:each) do
+        test_sign_in(Factory(:user))
+      end
+
+      it "should redirect to root" do
+        post :create, :user => {}
+        response.should redirect_to(root_path)
+      end
+    end
+
   end
 
   describe "GET 'edit'" do
@@ -314,8 +364,8 @@ describe UsersController do
     describe "as an admin user" do
 
       before(:each) do
-        admin = Factory(:user, :email => "admin@example.com", :admin => true)
-        test_sign_in(admin)
+        @admin = Factory(:user, :email => "admin@example.com", :admin => true)
+        test_sign_in(@admin)
       end
 
       it "should destroy the user" do
@@ -327,6 +377,12 @@ describe UsersController do
       it "should redirect to the users page" do
         delete :destroy, :id => @user
         response.should redirect_to(users_path)
+      end
+
+      it "should not be able to delete itself" do
+        lambda do
+          delete :destroy, :id => @admin
+        end.should_not change(User, :count)
       end
     end
   end
